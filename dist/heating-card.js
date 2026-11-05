@@ -3,7 +3,7 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "0.6";
+const VERSION = "0.6.1";
 
 const DEFAULTS = {
   decimals: 1,
@@ -367,7 +367,7 @@ class HeatingCard extends HTMLElement {
       parts.pipes += pipe("M40 48 H18 V238 H212 V226", cold, on);
       parts.devices += this._radiator(40, 18, 82, 42, rad, on);
       if (rad.pump) parts.devices += pump(156, 34, on, rad.pump, "left");
-      parts.labels += this._label(81, -8, rad, "Radiatoren", "middle");
+      parts.labels += this._label(81, -8, rad);
     }
 
     /* --- stove --- */
@@ -390,7 +390,7 @@ class HeatingCard extends HTMLElement {
 
     /* --- outdoor temperature --- */
     if (c.outdoor) {
-      parts.labels += this._label(346, -8, { entity: c.outdoor, name: "Buiten" }, "Buiten", "middle", true);
+      parts.labels += this._label(346, -8, { entity: c.outdoor, name: "Buiten" });
     }
 
     /* --- buffer --- */
@@ -404,15 +404,16 @@ class HeatingCard extends HTMLElement {
       </svg>`;
   }
 
-  _label(x, y, conf, fallback, anchor = "middle", forceName = false) {
+  /** Name (only when configured; an empty name shows no text) with the entity value below it. */
+  _label(x, y, conf, anchor = "middle") {
     const entity = conf.entity || conf.temperature;
-    if (!entity) {
-      return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(conf.name || fallback)}</text>`;
-    }
-    const name = forceName ? conf.name : this._name({ name: conf.name }, fallback);
+    const nameSvg = conf.name
+      ? `<text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(conf.name)}</text>`
+      : "";
+    if (!entity) return nameSvg;
     return `
       <g class="clickable" data-entity="${esc(entity)}">
-        <text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(name)}</text>
+        ${nameSvg}
         <text x="${x}" y="${y + 14}" text-anchor="${anchor}" class="lbl-value">${esc(this._fmt(entity))}</text>
       </g>`;
   }
@@ -462,7 +463,7 @@ class HeatingCard extends HTMLElement {
         ${flames}
         <line x1="${x + 6}" x2="${x + w - 6}" y1="${y + h - 38}" y2="${y + h - 38}" class="trim" />
         ${temp}
-        <text x="${x + w / 2}" y="${y + h - 8}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "Haard"))}</text>
+        ${conf.name ? `<text x="${x + w / 2}" y="${y + h - 8}" text-anchor="middle" class="dev-name">${esc(conf.name)}</text>` : ""}
       </g>`;
   }
 
@@ -481,7 +482,7 @@ class HeatingCard extends HTMLElement {
       <g class="dev dev-boiler ${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x + 6}" y="${y - 6}" width="${w - 12}" height="8" rx="2" class="foot" />
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" class="body" />
-        <text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "CV-ketel"))}</text>
+        ${conf.name ? `<text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(conf.name)}</text>` : ""}
         <rect x="${x + 12}" y="${y + 23}" width="${w - 24}" height="24" rx="3" class="display" />
         <text x="${fx}" y="${y + 40}" text-anchor="middle" class="display-text">${esc(display)}</text>
         ${gas}

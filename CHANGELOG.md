@@ -1,9 +1,10 @@
 # Changelog
 
-## 0.6
+## 0.6.1
 
 ### Gewijzigd
 - Neon: alleen de lijnen en vormen gloeien nog; de tekst blijft standaard scherp.
+- Laat je de naam van de radiatoren, de haard of de CV-ketel leeg, dan staat er geen tekst meer. Voorheen verscheen dan een standaardnaam (of de naam van de entiteit).
 
 ### Nieuw
 - Optie `text_glow` (in de editor: **Gloeiende tekst**) om in de neonstijl ook de tekst te laten gloeien.
