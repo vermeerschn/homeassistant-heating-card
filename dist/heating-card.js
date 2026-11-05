@@ -453,12 +453,17 @@ function pipe(d, color, flowing) {
 }
 
 function pump(x, y, on, entity, dir) {
-  const tri = dir === "left" ? `M${x + 4} ${y - 5} L${x - 5} ${y} L${x + 4} ${y + 5} Z` : `M${x - 4} ${y - 5} L${x + 5} ${y} L${x - 4} ${y + 5} Z`;
+  // Impeller with curved blades; spins (in the direction of flow) while the pump runs.
+  const blade = (a) => `<path d="M0 0 C 1.5 -3.5, 5 -6, 7.5 -3.5 C 5 -2, 2.5 -0.5, 0 0 Z" transform="rotate(${a})" />`;
+  const blades = [0, 72, 144, 216, 288].map(blade).join("");
+  const flip = dir === "left" ? "scale(-1 1)" : "";
   return `
     <g class="clickable pump ${on ? "on" : ""}" data-entity="${esc(entity)}">
-      ${on ? `<circle cx="${x}" cy="${y}" r="9" class="pump-pulse" />` : ""}
-      <circle cx="${x}" cy="${y}" r="9" class="pump-body" />
-      <path d="${tri}" class="pump-arrow" />
+      ${on ? `<circle cx="${x}" cy="${y}" r="10" class="pump-pulse" />` : ""}
+      <circle cx="${x}" cy="${y}" r="10" class="pump-body" />
+      <g transform="translate(${x} ${y}) ${flip}">
+        <g class="impeller ${on ? "spin" : ""}">${blades}<circle r="1.8" class="impeller-hub" /></g>
+      </g>
     </g>`;
 }
 
@@ -521,9 +526,12 @@ const STYLES = `
   .pill-text { fill: #fff; font-size: 12px; font-weight: 600; }
 
   .pump-body { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.5; }
-  .pump-arrow { fill: var(--hc-device-stroke); }
+  .impeller { fill: var(--hc-device-stroke); }
+  .impeller-hub { fill: var(--card-background-color, #fff); }
+  .impeller.spin { animation: hc-spin 0.9s linear infinite; }
+  @keyframes hc-spin { to { transform: rotate(360deg); } }
   .pump.on .pump-body { stroke: var(--hc-pump-on); }
-  .pump.on .pump-arrow { fill: var(--hc-pump-on); }
+  .pump.on .impeller { fill: var(--hc-pump-on); }
   .pump-pulse { fill: none; stroke: var(--hc-pump-on); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: hc-pulse 1.6s ease-out infinite; }
   @keyframes hc-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(1.9); opacity: 0; } }
 
@@ -533,7 +541,7 @@ const STYLES = `
   .dev-value { fill: #2b2f33; font-size: 12px; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
-    .flow, .flame, .pump-pulse { animation: none; }
+    .flow, .flame, .pump-pulse, .impeller.spin { animation: none; }
   }
 `;
 

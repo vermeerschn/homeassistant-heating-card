@@ -10,7 +10,7 @@ een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtk
 - **Buffervat met kleurverloop.** De kleur wordt live berekend uit de temperaturen van je buffersensoren (blauw = koud, rood = warm).
 - **Leidingen in de juiste kleur.** De aanvoer kleurt mee met de bovenkant van de buffer, de retour met de onderkant.
 - **Bewegende stroming** in de leidingen zolang de bijbehorende pomp aan staat.
-- **Pompsymbolen** die groen pulseren als de pomp draait.
+- **Draaiende pompen.** De schoep draait in de stroomrichting en pulseert groen zolang de pomp aan staat.
 - **Vlammen** in de haard als die actief is, en een blauwe **gasvlam** in de CV-ketel als die brandt.
 - **Klikbaar.** Tik op een temperatuur, pomp of toestel om het *more-info*-venster te openen.
 - **Werkt met je thema** (licht en donker) en schaalt mee met de breedte van de card.
