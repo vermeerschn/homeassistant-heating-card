@@ -3,7 +3,7 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "0.5";
+const VERSION = "0.6.1";
 
 const DEFAULTS = {
   decimals: 1,
@@ -148,6 +148,7 @@ class HeatingCard extends HTMLElement {
             },
           },
         },
+        { name: "text_glow", selector: { boolean: {} } },
         ent("outdoor", "sensor"),
         {
           name: "",
@@ -212,6 +213,7 @@ class HeatingCard extends HTMLElement {
         ({
           title: "Titel",
           style: "Stijl",
+          text_glow: "Gloeiende tekst (alleen neon)",
           name: "Naam",
           min_temp: "Koudste temperatuur (blauw)",
           max_temp: "Warmste temperatuur (rood)",
@@ -329,7 +331,7 @@ class HeatingCard extends HTMLElement {
       this._wrap = this.shadowRoot.querySelector(".wrap");
     }
     const c = this._config;
-    this._card.className = `style-${c.style}`;
+    this._card.className = `style-${c.style}${c.text_glow ? " text-glow" : ""}`;
     for (const [key, cssVar] of Object.entries(COLOR_VARS)) {
       if (c[key]) this._card.style.setProperty(cssVar, toCssColor(c[key]));
       else this._card.style.removeProperty(cssVar);
@@ -365,7 +367,7 @@ class HeatingCard extends HTMLElement {
       parts.pipes += pipe("M40 48 H18 V238 H212 V226", cold, on);
       parts.devices += this._radiator(40, 18, 82, 42, rad, on);
       if (rad.pump) parts.devices += pump(156, 34, on, rad.pump, "left");
-      parts.labels += this._label(81, -8, rad, "Radiatoren", "middle");
+      parts.labels += this._label(81, -8, rad);
     }
 
     /* --- stove --- */
@@ -388,7 +390,7 @@ class HeatingCard extends HTMLElement {
 
     /* --- outdoor temperature --- */
     if (c.outdoor) {
-      parts.labels += this._label(346, -8, { entity: c.outdoor, name: "Buiten" }, "Buiten", "middle", true);
+      parts.labels += this._label(346, -8, { entity: c.outdoor, name: "Buiten" });
     }
 
     /* --- buffer --- */
@@ -402,15 +404,16 @@ class HeatingCard extends HTMLElement {
       </svg>`;
   }
 
-  _label(x, y, conf, fallback, anchor = "middle", forceName = false) {
+  /** Name (only when configured; an empty name shows no text) with the entity value below it. */
+  _label(x, y, conf, anchor = "middle") {
     const entity = conf.entity || conf.temperature;
-    if (!entity) {
-      return `<text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(conf.name || fallback)}</text>`;
-    }
-    const name = forceName ? conf.name : this._name({ name: conf.name }, fallback);
+    const nameSvg = conf.name
+      ? `<text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(conf.name)}</text>`
+      : "";
+    if (!entity) return nameSvg;
     return `
       <g class="clickable" data-entity="${esc(entity)}">
-        <text x="${x}" y="${y}" text-anchor="${anchor}" class="lbl-name">${esc(name)}</text>
+        ${nameSvg}
         <text x="${x}" y="${y + 14}" text-anchor="${anchor}" class="lbl-value">${esc(this._fmt(entity))}</text>
       </g>`;
   }
@@ -460,7 +463,7 @@ class HeatingCard extends HTMLElement {
         ${flames}
         <line x1="${x + 6}" x2="${x + w - 6}" y1="${y + h - 38}" y2="${y + h - 38}" class="trim" />
         ${temp}
-        <text x="${x + w / 2}" y="${y + h - 8}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "Haard"))}</text>
+        ${conf.name ? `<text x="${x + w / 2}" y="${y + h - 8}" text-anchor="middle" class="dev-name">${esc(conf.name)}</text>` : ""}
       </g>`;
   }
 
@@ -479,7 +482,7 @@ class HeatingCard extends HTMLElement {
       <g class="dev dev-boiler ${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x + 6}" y="${y - 6}" width="${w - 12}" height="8" rx="2" class="foot" />
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" class="body" />
-        <text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "CV-ketel"))}</text>
+        ${conf.name ? `<text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(conf.name)}</text>` : ""}
         <rect x="${x + 12}" y="${y + 23}" width="${w - 24}" height="24" rx="3" class="display" />
         <text x="${fx}" y="${y + 40}" text-anchor="middle" class="display-text">${esc(display)}</text>
         ${gas}
@@ -629,7 +632,10 @@ const STYLES = `
   }
   .style-neon .dev-rad, .style-neon .dev-stove { --hc-device-stroke: var(--hc-accent-warm); }
   .style-neon .dev-boiler { --hc-device-stroke: var(--hc-accent-cold); }
-  .style-neon .dev { filter: drop-shadow(0 0 2.5px var(--hc-device-stroke)); }
+  /* glow only on shapes, so text stays sharp (text glow is optional: text_glow) */
+  .style-neon .dev rect, .style-neon .dev line, .style-neon .dev circle, .style-neon .dev path {
+    filter: drop-shadow(0 0 2.5px var(--hc-device-stroke));
+  }
   .style-neon .dev .body, .style-neon .dev .window, .style-neon .fin { stroke-width: 1.4; }
   .style-neon .fin { fill: transparent; }
   .style-neon .fin.warm { fill-opacity: .45; stroke: var(--hc-device-stroke); }
@@ -640,8 +646,9 @@ const STYLES = `
   .style-neon .tank { fill-opacity: .8; filter: url(#hc-glow); }
   .style-neon .tank-outline { stroke: rgba(255,255,255,.35); }
   .style-neon .pill { fill: rgba(0,0,0,.18); }
-  .style-neon .pill-text { filter: drop-shadow(0 0 2px rgba(255,255,255,.5)); }
-  .style-neon .lbl-value { filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
+  .style-neon.text-glow .pill-text { filter: drop-shadow(0 0 2px rgba(255,255,255,.5)); }
+  .style-neon.text-glow .lbl-value { filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
+  .style-neon.text-glow .dev text { filter: drop-shadow(0 0 2.5px var(--hc-device-stroke)); }
   .style-neon .pump.on { filter: drop-shadow(0 0 3px var(--hc-pump-on)); }
 
   .card-header[hidden] { display: none; }
