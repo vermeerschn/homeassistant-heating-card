@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4
+
+### Gewijzigd
+- Pompschoepen zijn groter en draaien trager.
+- De buitentemperatuur is een algemene optie (`outdoor`) en staat niet meer onder de CV-ketel. Een oude `boiler.outdoor` wordt nog gelezen.
+- De CV-ketel heeft geen temperatuur meer; het display toont AAN/UIT.
+
+### Nieuw
+- `boiler.gas`: het gasverbruik van vandaag (m³) wordt op de CV-ketel getoond.
+
 ## 0.3
 
 Eerste publieke versie van de Heating Card.

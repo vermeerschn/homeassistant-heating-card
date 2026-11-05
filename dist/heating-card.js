@@ -3,7 +3,7 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "0.3";
+const VERSION = "0.4";
 
 const DEFAULTS = {
   decimals: 1,
@@ -57,6 +57,8 @@ class HeatingCard extends HTMLElement {
     // backwards compatibility: "heat_pump" was renamed to "boiler"
     if (!c.boiler && c.heat_pump) c.boiler = c.heat_pump;
     delete c.heat_pump;
+    // backwards compatibility: outdoor temperature used to live under the boiler
+    if (!c.outdoor && c.boiler?.outdoor) c.outdoor = c.boiler.outdoor;
     const buffer = c.buffer || {};
     this._config = {
       ...DEFAULTS,
@@ -100,6 +102,7 @@ class HeatingCard extends HTMLElement {
     return {
       schema: [
         txt("title"),
+        ent("outdoor", "sensor"),
         {
           name: "",
           type: "grid",
@@ -137,7 +140,7 @@ class HeatingCard extends HTMLElement {
           type: "expandable",
           title: "CV-ketel",
           icon: "mdi:water-boiler",
-          schema: [txt("name"), ent("temperature", "sensor"), ent("outdoor", "sensor"), ent("active")],
+          schema: [txt("name"), ent("active"), ent("gas", "sensor")],
         },
       ],
       computeLabel: (s) =>
@@ -152,6 +155,7 @@ class HeatingCard extends HTMLElement {
           entities: "Buffersensoren (van boven naar onder)",
           temperature: "Temperatuur",
           outdoor: "Buitentemperatuur",
+          gas: "Gasverbruik vandaag",
           pump: "Pomp",
           active: "Actief",
         })[s.name],
@@ -179,14 +183,14 @@ class HeatingCard extends HTMLElement {
     return Number.isFinite(n) && n > 0;
   }
 
-  _fmt(entityId) {
+  _fmt(entityId, decimals) {
     const s = this._state(entityId);
     if (!s || s.state === "unavailable" || s.state === "unknown") return "—";
     const n = parseFloat(s.state);
     if (!Number.isFinite(n)) {
       return this._hass.formatEntityState ? this._hass.formatEntityState(s) : s.state;
     }
-    const d = Number(this._config.decimals);
+    const d = Number(decimals ?? this._config.decimals);
     const value = n.toLocaleString(this._hass.locale?.language || undefined, {
       minimumFractionDigits: d,
       maximumFractionDigits: d,
@@ -219,9 +223,10 @@ class HeatingCard extends HTMLElement {
   _relevantEntities() {
     const c = this._config;
     const list = c.buffer.entities.map((e) => e.entity);
+    if (c.outdoor) list.push(c.outdoor);
     for (const key of ["radiators", "stove", "boiler"]) {
       const sec = c[key];
-      if (sec) for (const f of ["temperature", "pump", "active", "outdoor"]) if (sec[f]) list.push(sec[f]);
+      if (sec) for (const f of ["temperature", "pump", "active", "gas"]) if (sec[f]) list.push(sec[f]);
     }
     return list;
   }
@@ -295,9 +300,11 @@ class HeatingCard extends HTMLElement {
       parts.pipes += pipe("M326 162 V176 H272 V96 H244", hot, on);
       parts.pipes += pipe("M244 194 H366 V162", cold, on);
       parts.devices += this._boiler(306, 26, 80, 136, boiler, on);
-      if (boiler.outdoor) {
-        parts.labels += this._label(346, -8, { entity: boiler.outdoor, name: "Buiten" }, "Buiten", "middle", true);
-      }
+    }
+
+    /* --- outdoor temperature --- */
+    if (c.outdoor) {
+      parts.labels += this._label(346, -8, { entity: c.outdoor, name: "Buiten" }, "Buiten", "middle", true);
     }
 
     /* --- buffer --- */
@@ -374,10 +381,16 @@ class HeatingCard extends HTMLElement {
   }
 
   _boiler(x, y, w, h, conf, on) {
-    const entity = conf.active || conf.temperature;
+    const entity = conf.active || conf.gas;
     const fx = x + w / 2;
-    const fb = y + 100;
-    const display = conf.temperature ? this._fmt(conf.temperature) : conf.active ? (on ? "AAN" : "UIT") : "--";
+    const fb = y + 106;
+    const display = conf.active ? (on ? "AAN" : "UIT") : "--";
+    const gas = conf.gas
+      ? `<g class="clickable" data-entity="${esc(conf.gas)}">
+          <text x="${fx}" y="${y + 59}" text-anchor="middle" class="gas-name">gas vandaag</text>
+          <text x="${fx}" y="${y + 71}" text-anchor="middle" class="gas-value">${esc(this._fmt(conf.gas, 2))}</text>
+        </g>`
+      : "";
     return `
       <g class="${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x + 6}" y="${y - 6}" width="${w - 12}" height="8" rx="2" class="foot" />
@@ -385,6 +398,7 @@ class HeatingCard extends HTMLElement {
         <text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "CV-ketel"))}</text>
         <rect x="${x + 12}" y="${y + 23}" width="${w - 24}" height="24" rx="3" class="display" />
         <text x="${fx}" y="${y + 40}" text-anchor="middle" class="display-text">${esc(display)}</text>
+        ${gas}
         <g class="boiler-flame ${on ? "on" : ""}">
           <path class="flame ${on ? "f1" : ""}" d="M${fx - 9} ${fb} C${fx - 15} ${fb - 10} ${fx - 6} ${fb - 18} ${fx - 3} ${fb - 28} C${fx + 4} ${fb - 18} ${fx + 14} ${fb - 12} ${fx + 9} ${fb} Z" />
           ${on ? `<path class="flame f3" d="M${fx - 4} ${fb} C${fx - 6} ${fb - 6} ${fx} ${fb - 11} ${fx + 1} ${fb - 16} C${fx + 5} ${fb - 9} ${fx + 6} ${fb - 4} ${fx + 4} ${fb} Z" />` : ""}
@@ -456,11 +470,11 @@ function pump(x, y, on, entity, dir) {
   // Impeller with curved blades; spins (in the direction of flow) while the pump runs.
   const blade = (a) => `<path d="M0 0 C 1.5 -3.5, 5 -6, 7.5 -3.5 C 5 -2, 2.5 -0.5, 0 0 Z" transform="rotate(${a})" />`;
   const blades = [0, 72, 144, 216, 288].map(blade).join("");
-  const flip = dir === "left" ? "scale(-1 1)" : "";
+  const flip = dir === "left" ? "scale(-1.45 1.45)" : "scale(1.45)";
   return `
     <g class="clickable pump ${on ? "on" : ""}" data-entity="${esc(entity)}">
-      ${on ? `<circle cx="${x}" cy="${y}" r="10" class="pump-pulse" />` : ""}
-      <circle cx="${x}" cy="${y}" r="10" class="pump-body" />
+      ${on ? `<circle cx="${x}" cy="${y}" r="13" class="pump-pulse" />` : ""}
+      <circle cx="${x}" cy="${y}" r="13" class="pump-body" />
       <g transform="translate(${x} ${y}) ${flip}">
         <g class="impeller ${on ? "spin" : ""}">${blades}<circle r="1.8" class="impeller-hub" /></g>
       </g>
@@ -515,6 +529,8 @@ const STYLES = `
   .boiler-flame.on .flame { opacity: 1; }
   .boiler-flame.on .f1 { fill: #2979ff; }
   .boiler-flame.on .f3 { fill: #80d8ff; }
+  .gas-name { fill: #6b737c; font-size: 7.5px; letter-spacing: .03em; }
+  .gas-value { fill: #2b2f33; font-size: 11px; font-weight: 600; }
   .burner { stroke: var(--hc-device-stroke); stroke-width: 2.5; stroke-linecap: round; }
   .panel { fill: rgba(0,0,0,.08); }
   .knob { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.2; }
@@ -528,12 +544,12 @@ const STYLES = `
   .pump-body { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.5; }
   .impeller { fill: var(--hc-device-stroke); }
   .impeller-hub { fill: var(--card-background-color, #fff); }
-  .impeller.spin { animation: hc-spin 0.9s linear infinite; }
+  .impeller.spin { animation: hc-spin 2s linear infinite; }
   @keyframes hc-spin { to { transform: rotate(360deg); } }
   .pump.on .pump-body { stroke: var(--hc-pump-on); }
   .pump.on .impeller { fill: var(--hc-pump-on); }
   .pump-pulse { fill: none; stroke: var(--hc-pump-on); stroke-width: 2; transform-box: fill-box; transform-origin: center; animation: hc-pulse 1.6s ease-out infinite; }
-  @keyframes hc-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(1.9); opacity: 0; } }
+  @keyframes hc-pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(1.6); opacity: 0; } }
 
   .lbl-name { fill: var(--hc-text-2); font-size: 9.5px; letter-spacing: .02em; }
   .lbl-value { fill: var(--hc-text); font-size: 13px; font-weight: 600; }
