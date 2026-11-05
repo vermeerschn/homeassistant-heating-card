@@ -8,6 +8,9 @@
 - Elke stijl heeft eigen standaardkleuren voor koud en warm; `cold_color` en `hot_color` overschrijven die nog altijd.
 - Nieuwe CSS-variabelen: `--heating-card-background`, `--heating-card-accent-warm` en `--heating-card-accent-cold`.
 
+### Verbeterd
+- Het `ha-card`-element wordt maar één keer opgebouwd en daarna alleen bijgewerkt. Daardoor blijven stijlen van card-mod behouden bij elke statuswijziging.
+
 ## 0.4
 
 ### Gewijzigd

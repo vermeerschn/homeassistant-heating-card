@@ -270,14 +270,24 @@ class HeatingCard extends HTMLElement {
     if (sig === this._signature) return;
     this._signature = sig;
 
+    // Build <ha-card> only once and update its content afterwards, so that
+    // card-mod (which styles the ha-card element) keeps its styling.
+    if (!this._card) {
+      this.shadowRoot.innerHTML = `
+        <style>${STYLES}</style>
+        <ha-card>
+          <h1 class="card-header"></h1>
+          <div class="wrap"></div>
+        </ha-card>`;
+      this._card = this.shadowRoot.querySelector("ha-card");
+      this._header = this.shadowRoot.querySelector(".card-header");
+      this._wrap = this.shadowRoot.querySelector(".wrap");
+    }
     const c = this._config;
-    const title = c.title ? `<h1 class="card-header">${esc(c.title)}</h1>` : "";
-    this.shadowRoot.innerHTML = `
-      <style>${STYLES}</style>
-      <ha-card class="style-${c.style}">
-        ${title}
-        <div class="wrap">${this._svg()}</div>
-      </ha-card>`;
+    this._card.className = `style-${c.style}`;
+    this._header.textContent = c.title || "";
+    this._header.hidden = !c.title;
+    this._wrap.innerHTML = this._svg();
   }
 
   _svg() {
@@ -585,6 +595,7 @@ const STYLES = `
   .style-neon .lbl-value { filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
   .style-neon .pump.on { filter: drop-shadow(0 0 3px var(--hc-pump-on)); }
 
+  .card-header[hidden] { display: none; }
   .card-header { margin: 0; padding: 16px 16px 0; font-size: 20px; font-weight: 400; color: var(--ha-card-header-color, var(--hc-text)); }
   .style-light .card-header, .style-dark .card-header, .style-neon .card-header { color: var(--hc-text); }
   .wrap { padding: 8px 12px 12px; }
