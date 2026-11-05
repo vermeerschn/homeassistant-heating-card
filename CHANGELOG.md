@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6
+
+### Gewijzigd
+- Neon: alleen de lijnen en vormen gloeien nog; de tekst blijft standaard scherp.
+
+### Nieuw
+- Optie `text_glow` (in de editor: **Gloeiende tekst**) om in de neonstijl ook de tekst te laten gloeien.
+
 ## 0.5
 
 ### Nieuw

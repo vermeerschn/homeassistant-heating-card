@@ -72,6 +72,7 @@ boiler:
 |---|---|---|
 | `title` | – | Titel boven de card |
 | `style` | `auto` | `auto` volgt je thema, verder `light`, `dark` of `neon` |
+| `text_glow` | `false` | Neon: laat ook de tekst gloeien. Standaard gloeien alleen de lijnen en blijft de tekst scherp |
 | `outdoor` | – | Buitentemperatuur, rechtsboven getoond |
 | `min_temp` | `20` | Temperatuur die als volledig "koud" wordt getoond |
 | `max_temp` | `60` | Temperatuur die als volledig "warm" wordt getoond |
