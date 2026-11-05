@@ -1,0 +1,55 @@
+name: Release
+
+# Start handmatig via Actions → Release → "Run workflow".
+# Maakt een concept-release (draft) aan met dist/heating-card.js als bijlage
+# en de bijbehorende sectie uit CHANGELOG.md als release notes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versienummer zonder 'v' (bv. 0.3)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Controleer versienummer in de card
+        run: |
+          if ! grep -q "const VERSION = \"${VERSION}\";" dist/heating-card.js; then
+            echo "::error::VERSION in dist/heating-card.js is niet ${VERSION}"
+            exit 1
+          fi
+
+      - name: Controleer JavaScript-syntax
+        run: node --check dist/heating-card.js
+
+      - name: Release notes uit CHANGELOG.md halen
+        run: |
+          awk -v v="## ${VERSION}" '
+            $0 == v { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "::error::Geen sectie '## ${VERSION}' gevonden in CHANGELOG.md"
+            exit 1
+          fi
+
+      - name: Concept-release aanmaken
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          target_commitish: ${{ github.sha }}
+          body_path: release-notes.md
+          files: dist/heating-card.js
+          draft: true
