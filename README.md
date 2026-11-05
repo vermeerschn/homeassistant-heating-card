@@ -89,3 +89,9 @@ Je kunt dus ook een vermogenssensor als `active` of `pump` gebruiken.
 | `--heating-card-device-color` | Kleur van de toestellen |
 | `--heating-card-device-stroke` | Randkleur van de toestellen |
 | `--heating-card-pump-on-color` | Kleur van een actieve pomp of LED |
+
+## Een nieuwe release maken
+
+1. Verhoog `VERSION` bovenaan `dist/heating-card.js` en voeg een sectie `## <versie>` toe aan `CHANGELOG.md`.
+2. Ga op GitHub naar **Actions → Release → Run workflow** en vul het versienummer in (bv. `0.3`).
+3. Er verschijnt een concept-release met tag `v<versie>` en `heating-card.js` als bijlage. Controleer die en klik op **Publish release**. HACS ziet dan de nieuwe versie.

@@ -3,7 +3,7 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "1.0.0";
+const VERSION = "0.3";
 
 const DEFAULTS = {
   decimals: 1,
