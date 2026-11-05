@@ -34,9 +34,31 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+/** Colour from config: "#rrggbb", "rgb(r, g, b)" or [r, g, b] (colour picker). */
+function toRgb(color) {
+  if (Array.isArray(color)) return color.slice(0, 3).map(Number);
+  const m = String(color).match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+  return hexToRgb(color);
+}
+
+/** Colour from config as CSS value. Named colours and CSS variables are passed through. */
+function toCssColor(color) {
+  if (Array.isArray(color)) return `rgb(${color.slice(0, 3).join(", ")})`;
+  return String(color);
+}
+
+/** Colour options that are applied as CSS variables on the card. */
+const COLOR_VARS = {
+  accent_warm: "--heating-card-accent-warm",
+  accent_cold: "--heating-card-accent-cold",
+  pump_color: "--heating-card-pump-on-color",
+  background: "--heating-card-background",
+};
+
 function mixColor(a, b, t) {
-  const ca = hexToRgb(a);
-  const cb = hexToRgb(b);
+  const ca = toRgb(a);
+  const cb = toRgb(b);
   const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
   return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
@@ -133,9 +155,28 @@ class HeatingCard extends HTMLElement {
           schema: [
             { name: "min_temp", selector: { number: { min: -20, max: 100, mode: "box", unit_of_measurement: "°C" } } },
             { name: "max_temp", selector: { number: { min: 0, max: 120, mode: "box", unit_of_measurement: "°C" } } },
-            { name: "cold_color", selector: { text: {} } },
-            { name: "hot_color", selector: { text: {} } },
             { name: "decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+          ],
+        },
+        {
+          name: "colors",
+          type: "expandable",
+          flatten: true,
+          title: "Kleuren (leeg = standaard van de stijl)",
+          icon: "mdi:palette",
+          schema: [
+            {
+              name: "",
+              type: "grid",
+              schema: [
+                { name: "cold_color", selector: { color_rgb: {} } },
+                { name: "hot_color", selector: { color_rgb: {} } },
+                { name: "accent_warm", selector: { color_rgb: {} } },
+                { name: "accent_cold", selector: { color_rgb: {} } },
+                { name: "pump_color", selector: { color_rgb: {} } },
+                { name: "background", selector: { color_rgb: {} } },
+              ],
+            },
           ],
         },
         {
@@ -174,8 +215,12 @@ class HeatingCard extends HTMLElement {
           name: "Naam",
           min_temp: "Koudste temperatuur (blauw)",
           max_temp: "Warmste temperatuur (rood)",
-          cold_color: "Kleur koud (leeg = stijl)",
-          hot_color: "Kleur warm (leeg = stijl)",
+          cold_color: "Koud water",
+          hot_color: "Warm water",
+          accent_warm: "Lijnen haard en radiatoren (neon)",
+          accent_cold: "Lijnen CV-ketel (neon)",
+          pump_color: "Draaiende pomp",
+          background: "Achtergrond (licht, donker, neon)",
           decimals: "Decimalen",
           entities: "Buffersensoren (van boven naar onder)",
           temperature: "Temperatuur",
@@ -285,6 +330,10 @@ class HeatingCard extends HTMLElement {
     }
     const c = this._config;
     this._card.className = `style-${c.style}`;
+    for (const [key, cssVar] of Object.entries(COLOR_VARS)) {
+      if (c[key]) this._card.style.setProperty(cssVar, toCssColor(c[key]));
+      else this._card.style.removeProperty(cssVar);
+    }
     this._header.textContent = c.title || "";
     this._header.hidden = !c.title;
     this._wrap.innerHTML = this._svg();
@@ -300,8 +349,8 @@ class HeatingCard extends HTMLElement {
     const known = bufTemps.filter((t) => t !== null);
     const topTemp = known.length ? known[0] : null;
     const bottomTemp = known.length ? known[known.length - 1] : null;
-    const hot = topTemp !== null ? this._color(topTemp) : c.hot_color;
-    const cold = bottomTemp !== null ? this._color(bottomTemp) : c.cold_color;
+    const hot = topTemp !== null ? this._color(topTemp) : toCssColor(c.hot_color);
+    const cold = bottomTemp !== null ? this._color(bottomTemp) : toCssColor(c.cold_color);
 
     // Buffer geometry
     const B = { x: 180, y: 50, w: 64, h: 180 };
@@ -453,7 +502,7 @@ class HeatingCard extends HTMLElement {
 
     let stops;
     if (n === 0) {
-      stops = `<stop offset="0" stop-color="${this._config.hot_color}"/><stop offset="1" stop-color="${this._config.cold_color}"/>`;
+      stops = `<stop offset="0" stop-color="${toCssColor(this._config.hot_color)}"/><stop offset="1" stop-color="${toCssColor(this._config.cold_color)}"/>`;
     } else {
       stops = entities
         .map((_, i) => `<stop offset="${((ys[i] - B.y) / B.h).toFixed(3)}" stop-color="${this._color(temps[i])}" />`)

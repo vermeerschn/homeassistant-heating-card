@@ -75,8 +75,15 @@ boiler:
 | `outdoor` | – | Buitentemperatuur, rechtsboven getoond |
 | `min_temp` | `20` | Temperatuur die als volledig "koud" wordt getoond |
 | `max_temp` | `60` | Temperatuur die als volledig "warm" wordt getoond |
-| `cold_color` | per stijl | Kleur voor koud (hex). Neon: `#33c6e0`, anders blauw |
-| `hot_color` | per stijl | Kleur voor warm (hex). Neon: `#ff6a3d`, anders rood |
+| `cold_color` | per stijl | Kleur voor koud water. Neon: `#33c6e0`, anders blauw |
+| `hot_color` | per stijl | Kleur voor warm water. Neon: `#ff6a3d`, anders rood |
+| `accent_warm` | `#f0935f` | Neon: lijnkleur van haard en radiatoren |
+| `accent_cold` | `#56d3e8` | Neon: lijnkleur van de CV-ketel |
+| `pump_color` | per stijl | Kleur van een draaiende pomp en de LED |
+| `background` | per stijl | Achtergrond van de card bij `light`, `dark` en `neon` (neon: doorzichtig) |
+
+Kleuren mag je opgeven als `"#ff8a65"`, als `[255, 138, 101]` (zo slaat de kleurkiezer van de editor ze op) of als CSS-kleur zoals `rgba(0, 0, 0, 0.3)`.
+In de editor staan ze onder **Kleuren**. Laat je een kleur leeg, dan gebruikt de card de standaard van de gekozen stijl.
 | `decimals` | `1` | Aantal decimalen bij numerieke waarden |
 | `buffer.entities` | – | Lijst met temperatuursensoren, van boven naar onder. Elk item mag ook `{entity: ..., name: ...}` zijn |
 | `buffer.name` | – | Naam onder het buffervat |
@@ -87,29 +94,21 @@ boiler:
 "Aan" betekent een state `on`, `heat`, `heating`, `running`, `active` of `true`, of een getal groter dan 0.
 Je kunt dus ook een vermogenssensor als `active` of `pump` gebruiken.
 
-### Uiterlijk aanpassen met card-mod of je thema
+### Uiterlijk aanpassen via je thema
+
+Je hoeft card-mod niet te gebruiken: de kleuropties hierboven volstaan.
+Wil je dezelfde kleuren voor alle Heating Cards tegelijk instellen, dan kan dat ook in je Home Assistant-thema:
 
 | CSS-variabele | Betekenis |
 |---|---|
 | `--heating-card-device-color` | Kleur van de toestellen |
 | `--heating-card-device-stroke` | Randkleur van de toestellen |
 | `--heating-card-pump-on-color` | Kleur van een actieve pomp of LED |
-| `--heating-card-background` | Achtergrond van de card (bij `light`, `dark` en `neon`) |
+| `--heating-card-background` | Achtergrond van de card |
 | `--heating-card-accent-warm` | Neon: lijnkleur van haard en radiatoren |
 | `--heating-card-accent-cold` | Neon: lijnkleur van de CV-ketel |
 
-Voorbeeld met card-mod, om de neonstijl op je eigen kleuren af te stemmen:
-
-```yaml
-style: neon
-card_mod:
-  style: |
-    :host {
-      --heating-card-accent-warm: #ff8a65;
-      --heating-card-accent-cold: #4dd0e1;
-      --heating-card-pump-on-color: #ff4081;
-    }
-```
+Kleuren die je in de card zelf instelt, gaan voor op die van het thema.
 
 ## Een nieuwe release maken
 
