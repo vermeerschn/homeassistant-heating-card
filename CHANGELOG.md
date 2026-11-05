@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2
+
+### Opgelost
+- Haal je de buitentemperatuur-sensor weg, dan verdwijnt de buitentemperatuur ook van de card. Voorheen viel de card terug op een verouderde `outdoor`-regel onder `boiler` (uit versie 0.3), die in de editor niet zichtbaar is. Die oude regel wordt nu genegeerd.
+
 ## 0.6.1
 
 ### Gewijzigd

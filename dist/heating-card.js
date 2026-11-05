@@ -3,7 +3,7 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "0.6.1";
+const VERSION = "0.6.2";
 
 const DEFAULTS = {
   decimals: 1,
@@ -85,8 +85,6 @@ class HeatingCard extends HTMLElement {
     // backwards compatibility: "heat_pump" was renamed to "boiler"
     if (!c.boiler && c.heat_pump) c.boiler = c.heat_pump;
     delete c.heat_pump;
-    // backwards compatibility: outdoor temperature used to live under the boiler
-    if (!c.outdoor && c.boiler?.outdoor) c.outdoor = c.boiler.outdoor;
     const buffer = c.buffer || {};
     const style = STYLE_COLORS[c.style] ? c.style : "auto";
     this._config = {
