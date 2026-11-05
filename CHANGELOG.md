@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5
+
+### Nieuw
+- Optie `style` met drie stijlen: `light`, `dark` en `neon`. Zonder `style` (of met `auto`) volgt de card zoals voorheen het thema.
+- Neonstijl: doorzichtige achtergrond, toestellen als gloeiende lijntekening (koper voor haard en radiatoren, cyaan voor de CV-ketel), dunne gloeiende leidingen en een buffervat van oranje naar turquoise.
+- Elke stijl heeft eigen standaardkleuren voor koud en warm; `cold_color` en `hot_color` overschrijven die nog altijd.
+- Nieuwe CSS-variabelen: `--heating-card-background`, `--heating-card-accent-warm` en `--heating-card-accent-cold`.
+
 ## 0.4
 
 ### Gewijzigd

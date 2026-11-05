@@ -3,14 +3,20 @@
  * Schematic of a heating installation: buffer tank, radiators,
  * wood stove and gas boiler with live temperatures and animated flow.
  */
-const VERSION = "0.4";
+const VERSION = "0.5";
 
 const DEFAULTS = {
   decimals: 1,
   min_temp: 20,
   max_temp: 60,
-  cold_color: "#2f80ed",
-  hot_color: "#eb3b3b",
+};
+
+/** Default cold/hot colours per visual style (can be overridden with cold_color / hot_color). */
+const STYLE_COLORS = {
+  auto: { cold: "#2f80ed", hot: "#eb3b3b" },
+  light: { cold: "#2f80ed", hot: "#eb3b3b" },
+  dark: { cold: "#3d8bfd", hot: "#f0524f" },
+  neon: { cold: "#33c6e0", hot: "#ff6a3d" },
 };
 
 const ON_STATES = ["on", "heat", "heating", "running", "active", "true", "open"];
@@ -60,9 +66,13 @@ class HeatingCard extends HTMLElement {
     // backwards compatibility: outdoor temperature used to live under the boiler
     if (!c.outdoor && c.boiler?.outdoor) c.outdoor = c.boiler.outdoor;
     const buffer = c.buffer || {};
+    const style = STYLE_COLORS[c.style] ? c.style : "auto";
     this._config = {
       ...DEFAULTS,
       ...c,
+      style,
+      cold_color: c.cold_color || STYLE_COLORS[style].cold,
+      hot_color: c.hot_color || STYLE_COLORS[style].hot,
       buffer: {
         name: buffer.name,
         entities: (buffer.entities || []).map(toEntityConf).filter(Boolean),
@@ -102,6 +112,20 @@ class HeatingCard extends HTMLElement {
     return {
       schema: [
         txt("title"),
+        {
+          name: "style",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "auto", label: "Automatisch (volgt het thema)" },
+                { value: "light", label: "Licht" },
+                { value: "dark", label: "Donker" },
+                { value: "neon", label: "Neon" },
+              ],
+            },
+          },
+        },
         ent("outdoor", "sensor"),
         {
           name: "",
@@ -146,11 +170,12 @@ class HeatingCard extends HTMLElement {
       computeLabel: (s) =>
         ({
           title: "Titel",
+          style: "Stijl",
           name: "Naam",
           min_temp: "Koudste temperatuur (blauw)",
           max_temp: "Warmste temperatuur (rood)",
-          cold_color: "Kleur koud",
-          hot_color: "Kleur warm",
+          cold_color: "Kleur koud (leeg = stijl)",
+          hot_color: "Kleur warm (leeg = stijl)",
           decimals: "Decimalen",
           entities: "Buffersensoren (van boven naar onder)",
           temperature: "Temperatuur",
@@ -249,7 +274,7 @@ class HeatingCard extends HTMLElement {
     const title = c.title ? `<h1 class="card-header">${esc(c.title)}</h1>` : "";
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
-      <ha-card>
+      <ha-card class="style-${c.style}">
         ${title}
         <div class="wrap">${this._svg()}</div>
       </ha-card>`;
@@ -344,7 +369,7 @@ class HeatingCard extends HTMLElement {
     }
     const entity = conf.temperature || conf.pump;
     return `
-      <g class="${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
+      <g class="dev dev-rad ${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" class="body" />
         ${finSvg}
         <rect x="${x + 6}" y="${y + h}" width="5" height="5" class="foot" />
@@ -369,7 +394,7 @@ class HeatingCard extends HTMLElement {
       ? `<text x="${x + w / 2}" y="${y + h - 22}" text-anchor="middle" class="dev-value">${esc(this._fmt(conf.temperature))}</text>`
       : "";
     return `
-      <g class="${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
+      <g class="dev dev-stove ${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x + 6}" y="${y - 8}" width="${w - 12}" height="10" rx="3" class="body" />
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" class="body" />
         <rect x="${win.x}" y="${win.y}" width="${win.w}" height="${win.h}" rx="4" class="window" />
@@ -392,7 +417,7 @@ class HeatingCard extends HTMLElement {
         </g>`
       : "";
     return `
-      <g class="${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
+      <g class="dev dev-boiler ${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
         <rect x="${x + 6}" y="${y - 6}" width="${w - 12}" height="8" rx="2" class="foot" />
         <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" class="body" />
         <text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "CV-ketel"))}</text>
@@ -449,8 +474,12 @@ class HeatingCard extends HTMLElement {
           <stop offset="0.55" stop-color="#fff" stop-opacity="0" />
           <stop offset="1" stop-color="#000" stop-opacity="0.3" />
         </linearGradient>
+        <filter id="hc-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
       </defs>
-      <rect x="${B.x}" y="${B.y}" width="${B.w}" height="${B.h}" rx="22" fill="url(#hc-buf)" />
+      <rect x="${B.x}" y="${B.y}" width="${B.w}" height="${B.h}" rx="22" fill="url(#hc-buf)" class="tank" />
       <rect x="${B.x}" y="${B.y}" width="${B.w}" height="${B.h}" rx="22" fill="url(#hc-gloss)" class="tank-outline" />
       ${pills}
       ${name}`;
@@ -462,7 +491,7 @@ class HeatingCard extends HTMLElement {
 function pipe(d, color, flowing) {
   return `
     <path d="${d}" class="pipe-shadow" />
-    <path d="${d}" class="pipe" stroke="${color}" />
+    <path d="${d}" class="pipe" stroke="${color}" color="${color}" />
     ${flowing ? `<path d="${d}" class="flow" />` : ""}`;
 }
 
@@ -482,15 +511,82 @@ function pump(x, y, on, entity, dir) {
 }
 
 const STYLES = `
-  :host {
+  /* ---- style: auto (default, follows the HA theme) ---- */
+  ha-card {
+    overflow: hidden;
     --hc-device: var(--heating-card-device-color, #dfe3e8);
     --hc-device-stroke: var(--heating-card-device-stroke, #9aa3ad);
     --hc-pump-on: var(--heating-card-pump-on-color, #43a047);
     --hc-text: var(--primary-text-color, #212121);
     --hc-text-2: var(--secondary-text-color, #727272);
+    --hc-dev-text: #555b63;
+    --hc-dev-value: #2b2f33;
+    --hc-surface: var(--card-background-color, #fff);
+    --hc-window: #2b2b2e;
+    --hc-panel: rgba(0,0,0,.08);
   }
-  ha-card { overflow: hidden; }
+
+  /* ---- style: light ---- */
+  ha-card.style-light {
+    background: var(--heating-card-background, #f7f8fa);
+    --hc-text: #1f2328;
+    --hc-text-2: #69717a;
+    --hc-surface: #fff;
+  }
+
+  /* ---- style: dark ---- */
+  ha-card.style-dark {
+    background: var(--heating-card-background, #1c1f24);
+    --hc-device: var(--heating-card-device-color, #2d333b);
+    --hc-device-stroke: var(--heating-card-device-stroke, #5d6773);
+    --hc-text: #e6e9ec;
+    --hc-text-2: #98a1ab;
+    --hc-dev-text: #aab3bd;
+    --hc-dev-value: #f0f3f5;
+    --hc-surface: #1c1f24;
+    --hc-window: #111418;
+    --hc-panel: rgba(255,255,255,.05);
+  }
+  .style-dark .fin.warm { stroke: rgba(255,255,255,.12); }
+  .style-dark .tank-outline { stroke: rgba(255,255,255,.18); }
+
+  /* ---- style: neon ---- */
+  ha-card.style-neon {
+    background: var(--heating-card-background, transparent);
+    box-shadow: none;
+    border: none;
+    --hc-device: var(--heating-card-device-color, rgba(255,255,255,.03));
+    --hc-device-stroke: var(--heating-card-device-stroke, #6f7f8c);
+    --hc-accent-warm: var(--heating-card-accent-warm, #f0935f);
+    --hc-accent-cold: var(--heating-card-accent-cold, #56d3e8);
+    --hc-pump-on: var(--heating-card-pump-on-color, #5cffa1);
+    --hc-text: #eef6f9;
+    --hc-text-2: #8fa5b2;
+    --hc-dev-text: #a9bcc7;
+    --hc-dev-value: #ffffff;
+    --hc-surface: rgba(8,12,16,.75);
+    --hc-window: rgba(0,0,0,.45);
+    --hc-panel: rgba(255,255,255,.03);
+  }
+  .style-neon .dev-rad, .style-neon .dev-stove { --hc-device-stroke: var(--hc-accent-warm); }
+  .style-neon .dev-boiler { --hc-device-stroke: var(--hc-accent-cold); }
+  .style-neon .dev { filter: drop-shadow(0 0 2.5px var(--hc-device-stroke)); }
+  .style-neon .dev .body, .style-neon .dev .window, .style-neon .fin { stroke-width: 1.4; }
+  .style-neon .fin { fill: transparent; }
+  .style-neon .fin.warm { fill-opacity: .45; stroke: var(--hc-device-stroke); }
+  .style-neon .display { fill: rgba(0,0,0,.55); stroke: var(--hc-device-stroke); }
+  .style-neon .pipe-shadow { display: none; }
+  .style-neon .pipe { stroke-width: 3; filter: drop-shadow(0 0 3px currentColor); }
+  .style-neon .flow { stroke-width: 1.3; stroke: rgba(255,255,255,.9); }
+  .style-neon .tank { fill-opacity: .8; filter: url(#hc-glow); }
+  .style-neon .tank-outline { stroke: rgba(255,255,255,.35); }
+  .style-neon .pill { fill: rgba(0,0,0,.18); }
+  .style-neon .pill-text { filter: drop-shadow(0 0 2px rgba(255,255,255,.5)); }
+  .style-neon .lbl-value { filter: drop-shadow(0 0 3px rgba(255,255,255,.35)); }
+  .style-neon .pump.on { filter: drop-shadow(0 0 3px var(--hc-pump-on)); }
+
   .card-header { margin: 0; padding: 16px 16px 0; font-size: 20px; font-weight: 400; color: var(--ha-card-header-color, var(--hc-text)); }
+  .style-light .card-header, .style-dark .card-header, .style-neon .card-header { color: var(--hc-text); }
   .wrap { padding: 8px 12px 12px; }
   svg { display: block; width: 100%; height: auto; font-family: var(--paper-font-body1_-_font-family, inherit); }
 
@@ -511,7 +607,7 @@ const STYLES = `
   .fin { stroke: var(--hc-device-stroke); stroke-width: .8; transition: fill .6s; }
   .fin.warm { stroke: rgba(0,0,0,.15); }
 
-  .window { fill: #2b2b2e; stroke: var(--hc-device-stroke); stroke-width: 1.2; }
+  .window { fill: var(--hc-window); stroke: var(--hc-device-stroke); stroke-width: 1.2; }
   .glow { fill: rgba(255,140,0,.18); }
   .flame { transform-box: fill-box; transform-origin: 50% 100%; }
   .f1 { fill: #ff6d00; animation: hc-flicker 1.1s ease-in-out infinite alternate; }
@@ -529,11 +625,11 @@ const STYLES = `
   .boiler-flame.on .flame { opacity: 1; }
   .boiler-flame.on .f1 { fill: #2979ff; }
   .boiler-flame.on .f3 { fill: #80d8ff; }
-  .gas-name { fill: #6b737c; font-size: 7.5px; letter-spacing: .03em; }
-  .gas-value { fill: #2b2f33; font-size: 11px; font-weight: 600; }
+  .gas-name { fill: var(--hc-text-2); font-size: 7.5px; letter-spacing: .03em; }
+  .gas-value { fill: var(--hc-dev-value); font-size: 11px; font-weight: 600; }
   .burner { stroke: var(--hc-device-stroke); stroke-width: 2.5; stroke-linecap: round; }
-  .panel { fill: rgba(0,0,0,.08); }
-  .knob { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.2; }
+  .panel { fill: var(--hc-panel); }
+  .knob { fill: var(--hc-surface); stroke: var(--hc-device-stroke); stroke-width: 1.2; }
   .led { fill: var(--hc-device-stroke); }
   .led.on { fill: var(--hc-pump-on); filter: drop-shadow(0 0 3px var(--hc-pump-on)); }
 
@@ -541,9 +637,9 @@ const STYLES = `
   .pill { fill: rgba(0,0,0,.28); }
   .pill-text { fill: #fff; font-size: 12px; font-weight: 600; }
 
-  .pump-body { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.5; }
+  .pump-body { fill: var(--hc-surface); stroke: var(--hc-device-stroke); stroke-width: 1.5; }
   .impeller { fill: var(--hc-device-stroke); }
-  .impeller-hub { fill: var(--card-background-color, #fff); }
+  .impeller-hub { fill: var(--hc-surface); }
   .impeller.spin { animation: hc-spin 2s linear infinite; }
   @keyframes hc-spin { to { transform: rotate(360deg); } }
   .pump.on .pump-body { stroke: var(--hc-pump-on); }
@@ -553,8 +649,8 @@ const STYLES = `
 
   .lbl-name { fill: var(--hc-text-2); font-size: 9.5px; letter-spacing: .02em; }
   .lbl-value { fill: var(--hc-text); font-size: 13px; font-weight: 600; }
-  .dev-name { fill: #555b63; font-size: 9px; }
-  .dev-value { fill: #2b2f33; font-size: 12px; font-weight: 600; }
+  .dev-name { fill: var(--hc-dev-text); font-size: 9px; }
+  .dev-value { fill: var(--hc-dev-value); font-size: 12px; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
     .flow, .flame, .pump-pulse, .impeller.spin { animation: none; }
