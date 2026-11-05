@@ -1,7 +1,7 @@
 # Heating Card
 
 Een custom Lovelace-card voor Home Assistant die je verwarmingsinstallatie als schema toont:
-een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtkachel) en een **warmtepomp**.
+een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtkachel) en een **CV-ketel** (gaswandketel).
 
 ![preview](images/preview.png)
 
@@ -11,11 +11,11 @@ een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtk
 - **Leidingen in de juiste kleur.** De aanvoer kleurt mee met de bovenkant van de buffer, de retour met de onderkant.
 - **Bewegende stroming** in de leidingen zolang de bijbehorende pomp aan staat.
 - **Pompsymbolen** die groen pulseren als de pomp draait.
-- **Vlammen** in de haard als die actief is, en een **draaiende ventilator** in de warmtepomp.
+- **Vlammen** in de haard als die actief is, en een blauwe **gasvlam** in de CV-ketel als die brandt.
 - **Klikbaar.** Tik op een temperatuur, pomp of toestel om het *more-info*-venster te openen.
 - **Werkt met je thema** (licht en donker) en schaalt mee met de breedte van de card.
 - **Visuele editor** in het dashboard; YAML werkt ook.
-- **Optionele onderdelen.** Laat je een onderdeel (bv. `heat_pump`) weg, dan verdwijnt het met zijn leidingen uit het schema.
+- **Optionele onderdelen.** Laat je een onderdeel (bv. `boiler`) weg, dan verdwijnt het met zijn leidingen uit het schema.
 
 ## Installatie
 
@@ -56,11 +56,11 @@ stove:
   temperature: sensor.sensor_hoxter
   pump: binary_sensor.sensor_pomphoxter
   active: input_boolean.hoxter_haard_actief
-heat_pump:
-  name: Warmtepomp
-  temperature: sensor.sensor_warmtevraag_tech
+boiler:
+  name: CV-ketel
   outdoor: sensor.sensor_buitenvoeler
-  # active: binary_sensor.warmtepomp_actief   # optioneel: ventilator + stroming
+  # active: binary_sensor.cv_ketel_brander      # optioneel: vlam + stroming
+  # temperature: sensor.cv_ketel_aanvoer        # optioneel: getoond op het display
 ```
 
 ### Opties
@@ -77,7 +77,7 @@ heat_pump:
 | `buffer.name` | – | Naam onder het buffervat |
 | `radiators.temperature` / `.pump` / `.name` | – | Temperatuur, pomp en naam van het radiatorcircuit |
 | `stove.temperature` / `.pump` / `.active` / `.name` | – | Haard. Zonder `active` branden de vlammen zolang de pomp draait |
-| `heat_pump.temperature` / `.outdoor` / `.active` / `.name` | – | Warmtepomp: warmtevraag, buitentemperatuur, actief |
+| `boiler.temperature` / `.outdoor` / `.active` / `.name` | – | CV-ketel: temperatuur op het display (bv. aanvoer), buitentemperatuur erboven, brander actief |
 
 "Aan" betekent een state `on`, `heat`, `heating`, `running`, `active` of `true`, of een getal groter dan 0.
 Je kunt dus ook een vermogenssensor als `active` of `pump` gebruiken.

@@ -1,7 +1,7 @@
 /**
  * Heating Card – custom Lovelace card for Home Assistant
  * Schematic of a heating installation: buffer tank, radiators,
- * wood stove and heat pump with live temperatures and animated flow.
+ * wood stove and gas boiler with live temperatures and animated flow.
  */
 const VERSION = "1.0.0";
 
@@ -54,6 +54,9 @@ class HeatingCard extends HTMLElement {
   setConfig(config) {
     if (!config || typeof config !== "object") throw new Error("Ongeldige configuratie");
     const c = JSON.parse(JSON.stringify(config));
+    // backwards compatibility: "heat_pump" was renamed to "boiler"
+    if (!c.boiler && c.heat_pump) c.boiler = c.heat_pump;
+    delete c.heat_pump;
     const buffer = c.buffer || {};
     this._config = {
       ...DEFAULTS,
@@ -87,7 +90,7 @@ class HeatingCard extends HTMLElement {
       buffer: { entities: sensors.slice(0, 4) },
       radiators: { name: "Radiatoren" },
       stove: { name: "Haard" },
-      heat_pump: { name: "Warmtepomp" },
+      boiler: { name: "CV-ketel" },
     };
   }
 
@@ -130,10 +133,10 @@ class HeatingCard extends HTMLElement {
           schema: [txt("name"), ent("temperature", "sensor"), ent("pump"), ent("active")],
         },
         {
-          name: "heat_pump",
+          name: "boiler",
           type: "expandable",
-          title: "Warmtepomp",
-          icon: "mdi:heat-pump",
+          title: "CV-ketel",
+          icon: "mdi:water-boiler",
           schema: [txt("name"), ent("temperature", "sensor"), ent("outdoor", "sensor"), ent("active")],
         },
       ],
@@ -216,7 +219,7 @@ class HeatingCard extends HTMLElement {
   _relevantEntities() {
     const c = this._config;
     const list = c.buffer.entities.map((e) => e.entity);
-    for (const key of ["radiators", "stove", "heat_pump"]) {
+    for (const key of ["radiators", "stove", "boiler"]) {
       const sec = c[key];
       if (sec) for (const f of ["temperature", "pump", "active", "outdoor"]) if (sec[f]) list.push(sec[f]);
     }
@@ -251,7 +254,7 @@ class HeatingCard extends HTMLElement {
     const c = this._config;
     const rad = c.radiators;
     const stove = c.stove;
-    const hp = c.heat_pump;
+    const boiler = c.boiler;
 
     const bufTemps = c.buffer.entities.map((e) => this._num(e.entity));
     const known = bufTemps.filter((t) => t !== null);
@@ -280,25 +283,21 @@ class HeatingCard extends HTMLElement {
     if (stove) {
       const pumpOn = this._isOn(stove.pump);
       const fire = stove.active ? this._isOn(stove.active) : pumpOn;
-      const stoveTemp = this._num(stove.temperature);
-      parts.pipes += pipe("M108 124 H180", stoveTemp !== null ? this._color(stoveTemp) : hot, pumpOn);
+      parts.pipes += pipe("M108 124 H180", hot, pumpOn);
       parts.pipes += pipe("M180 194 H108", cold, pumpOn);
       parts.devices += this._stove(40, 106, 68, 112, stove, fire);
       if (stove.pump) parts.devices += pump(146, 124, pumpOn, stove.pump, "right");
     }
 
-    /* --- heat pump --- */
-    if (hp) {
-      const on = hp.active ? this._isOn(hp.active) : false;
-      parts.pipes += pipe("M302 96 H244", hot, on);
-      parts.pipes += pipe("M244 194 H352 V178", cold, on);
-      parts.devices += this._heatPump(302, 70, 98, 108, hp, on);
-      const lines = [];
-      if (hp.outdoor) lines.push({ entity: hp.outdoor, name: "Buiten" });
-      if (hp.temperature) lines.push({ entity: hp.temperature, name: "Warmtevraag" });
-      lines.forEach((l, i) => {
-        parts.labels += this._label(351, -8 + i * 34, l, l.name, "middle", true);
-      });
+    /* --- gas boiler (wall-hung) --- */
+    if (boiler) {
+      const on = boiler.active ? this._isOn(boiler.active) : false;
+      parts.pipes += pipe("M326 162 V176 H272 V96 H244", hot, on);
+      parts.pipes += pipe("M244 194 H366 V162", cold, on);
+      parts.devices += this._boiler(306, 26, 80, 136, boiler, on);
+      if (boiler.outdoor) {
+        parts.labels += this._label(346, -8, { entity: boiler.outdoor, name: "Buiten" }, "Buiten", "middle", true);
+      }
     }
 
     /* --- buffer --- */
@@ -374,31 +373,27 @@ class HeatingCard extends HTMLElement {
       </g>`;
   }
 
-  _heatPump(x, y, w, h, conf, on) {
+  _boiler(x, y, w, h, conf, on) {
     const entity = conf.active || conf.temperature;
-    const fcx = x + 36;
-    const fcy = y + h / 2 + 4;
-    const r = 26;
-    let grille = "";
-    for (let i = 0; i < 6; i++) {
-      const gy = y + 24 + i * 9;
-      grille += `<line x1="${x + 70}" x2="${x + w - 10}" y1="${gy}" y2="${gy}" class="trim" />`;
-    }
-    const blade = (a) =>
-      `<path d="M0 0 C 6 -6, 18 -8, 22 -2 C 14 2, 6 4, 0 0 Z" transform="rotate(${a})" class="blade" />`;
+    const fx = x + w / 2;
+    const fb = y + 100;
+    const display = conf.temperature ? this._fmt(conf.temperature) : conf.active ? (on ? "AAN" : "UIT") : "--";
     return `
       <g class="${entity ? "clickable" : ""}" ${entity ? `data-entity="${esc(entity)}"` : ""}>
-        <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" class="body" />
-        <rect x="${x + 12}" y="${y + h}" width="12" height="6" class="foot" />
-        <rect x="${x + w - 24}" y="${y + h}" width="12" height="6" class="foot" />
-        <circle cx="${fcx}" cy="${fcy}" r="${r + 3}" class="fan-ring" />
-        <circle cx="${fcx}" cy="${fcy}" r="${r}" class="fan-bg" />
-        <g transform="translate(${fcx} ${fcy})">
-          <g class="fan ${on ? "spin" : ""}">${blade(0)}${blade(120)}${blade(240)}<circle r="4" class="hub" /></g>
+        <rect x="${x + 6}" y="${y - 6}" width="${w - 12}" height="8" rx="2" class="foot" />
+        <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" class="body" />
+        <text x="${fx}" y="${y + 15}" text-anchor="middle" class="dev-name">${esc(this._name({ name: conf.name, entity: conf.active }, "CV-ketel"))}</text>
+        <rect x="${x + 12}" y="${y + 23}" width="${w - 24}" height="24" rx="3" class="display" />
+        <text x="${fx}" y="${y + 40}" text-anchor="middle" class="display-text">${esc(display)}</text>
+        <g class="boiler-flame ${on ? "on" : ""}">
+          <path class="flame ${on ? "f1" : ""}" d="M${fx - 9} ${fb} C${fx - 15} ${fb - 10} ${fx - 6} ${fb - 18} ${fx - 3} ${fb - 28} C${fx + 4} ${fb - 18} ${fx + 14} ${fb - 12} ${fx + 9} ${fb} Z" />
+          ${on ? `<path class="flame f3" d="M${fx - 4} ${fb} C${fx - 6} ${fb - 6} ${fx} ${fb - 11} ${fx + 1} ${fb - 16} C${fx + 5} ${fb - 9} ${fx + 6} ${fb - 4} ${fx + 4} ${fb} Z" />` : ""}
+          <line x1="${fx - 16}" x2="${fx + 16}" y1="${fb + 3}" y2="${fb + 3}" class="burner" />
         </g>
-        ${grille}
-        <circle cx="${x + w - 14}" cy="${y + 12}" r="3.5" class="led ${on ? "on" : ""}" />
-        <text x="${x + w / 2}" y="${y + h - 7}" class="dev-name" text-anchor="middle">${esc(this._name({ name: conf.name, entity: conf.active }, "Warmtepomp"))}</text>
+        <rect x="${x + 1}" y="${y + h - 26}" width="${w - 2}" height="25" rx="6" class="panel" />
+        <circle cx="${x + 16}" cy="${y + h - 13}" r="4.5" class="knob" />
+        <circle cx="${x + 32}" cy="${y + h - 13}" r="4.5" class="knob" />
+        <circle cx="${x + w - 14}" cy="${y + h - 13}" r="3" class="led ${on ? "on" : ""}" />
       </g>`;
   }
 
@@ -509,12 +504,15 @@ const STYLES = `
     100% { transform: scale(1.05, .9) skewX(-3deg); opacity: .85; }
   }
 
-  .fan-ring { fill: none; stroke: var(--hc-device-stroke); stroke-width: 1.5; }
-  .fan-bg { fill: rgba(0,0,0,.08); }
-  .blade { fill: var(--hc-device-stroke); }
-  .hub { fill: var(--hc-device-stroke); }
-  .fan.spin { animation: hc-spin 1.2s linear infinite; }
-  @keyframes hc-spin { to { transform: rotate(360deg); } }
+  .display { fill: #1d262c; stroke: rgba(0,0,0,.4); stroke-width: 1; }
+  .display-text { fill: #8fe3ff; font-size: 12px; font-weight: 600; letter-spacing: .03em; }
+  .boiler-flame .flame { fill: var(--hc-device-stroke); opacity: .55; }
+  .boiler-flame.on .flame { opacity: 1; }
+  .boiler-flame.on .f1 { fill: #2979ff; }
+  .boiler-flame.on .f3 { fill: #80d8ff; }
+  .burner { stroke: var(--hc-device-stroke); stroke-width: 2.5; stroke-linecap: round; }
+  .panel { fill: rgba(0,0,0,.08); }
+  .knob { fill: var(--card-background-color, #fff); stroke: var(--hc-device-stroke); stroke-width: 1.2; }
   .led { fill: var(--hc-device-stroke); }
   .led.on { fill: var(--hc-pump-on); filter: drop-shadow(0 0 3px var(--hc-pump-on)); }
 
@@ -535,7 +533,7 @@ const STYLES = `
   .dev-value { fill: #2b2f33; font-size: 12px; font-weight: 600; }
 
   @media (prefers-reduced-motion: reduce) {
-    .flow, .flame, .fan.spin, .pump-pulse { animation: none; }
+    .flow, .flame, .pump-pulse { animation: none; }
   }
 `;
 
@@ -545,7 +543,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "heating-card",
   name: "Heating Card",
-  description: "Schema van je verwarmingsinstallatie: buffervat, radiatoren, haard en warmtepomp.",
+  description: "Schema van je verwarmingsinstallatie: buffervat, radiatoren, haard en CV-ketel.",
   preview: true,
   documentationURL: "https://github.com/vermeerschn/homeassistant-heating-card",
 });
