@@ -12,6 +12,7 @@ een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtk
 - **Bewegende stroming** in de leidingen zolang de bijbehorende pomp aan staat.
 - **Draaiende pompen.** De schoep draait in de stroomrichting en pulseert groen zolang de pomp aan staat.
 - **Vlammen** in de haard als die actief is, en een blauwe **gasvlam** in de CV-ketel als die brandt.
+- **Gasverbruik van vandaag** op de CV-ketel, en de **buitentemperatuur** rechtsboven.
 - **Klikbaar.** Tik op een temperatuur, pomp of toestel om het *more-info*-venster te openen.
 - **Werkt met je thema** (licht en donker) en schaalt mee met de breedte van de card.
 - **Visuele editor** in het dashboard; YAML werkt ook.
@@ -38,6 +39,7 @@ een **buffervat** met temperatuurgradiënt, **radiatoren**, een **haard** (houtk
 ```yaml
 type: custom:heating-card
 title: Verwarming
+outdoor: sensor.sensor_buitenvoeler   # buitentemperatuur, rechtsboven
 min_temp: 25          # temperatuur die volledig blauw is
 max_temp: 55          # temperatuur die volledig rood is
 buffer:
@@ -58,9 +60,8 @@ stove:
   active: input_boolean.hoxter_haard_actief
 boiler:
   name: CV-ketel
-  outdoor: sensor.sensor_buitenvoeler
-  # active: binary_sensor.cv_ketel_brander      # optioneel: vlam + stroming
-  # temperature: sensor.cv_ketel_aanvoer        # optioneel: getoond op het display
+  # active: binary_sensor.cv_ketel_brander      # optioneel: vlam + stroming, AAN/UIT op het display
+  # gas: sensor.gasverbruik_vandaag             # optioneel: dagverbruik in m³
 ```
 
 ### Opties
@@ -68,6 +69,7 @@ boiler:
 | Optie | Standaard | Omschrijving |
 |---|---|---|
 | `title` | – | Titel boven de card |
+| `outdoor` | – | Buitentemperatuur, rechtsboven getoond |
 | `min_temp` | `20` | Temperatuur die als volledig "koud" wordt getoond |
 | `max_temp` | `60` | Temperatuur die als volledig "warm" wordt getoond |
 | `cold_color` | `#2f80ed` | Kleur voor koud (hex) |
@@ -77,7 +79,7 @@ boiler:
 | `buffer.name` | – | Naam onder het buffervat |
 | `radiators.temperature` / `.pump` / `.name` | – | Temperatuur, pomp en naam van het radiatorcircuit |
 | `stove.temperature` / `.pump` / `.active` / `.name` | – | Haard. Zonder `active` branden de vlammen zolang de pomp draait |
-| `boiler.temperature` / `.outdoor` / `.active` / `.name` | – | CV-ketel: temperatuur op het display (bv. aanvoer), buitentemperatuur erboven, brander actief |
+| `boiler.active` / `.gas` / `.name` | – | CV-ketel: brander actief (AAN/UIT op het display), gasverbruik van vandaag (2 decimalen) |
 
 "Aan" betekent een state `on`, `heat`, `heating`, `running`, `active` of `true`, of een getal groter dan 0.
 Je kunt dus ook een vermogenssensor als `active` of `pump` gebruiken.
